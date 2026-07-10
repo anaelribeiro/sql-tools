@@ -1,0 +1,2174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Smart SQL Join Generator</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:0;padding:0;background:#f8f9fa}
+h1{margin:0 0 10px;color:#007b83}
+.container {display: flex;min-height: 100vh;}
+.left-panel {
+  width: 400px; background:#fff; border-right:1px solid #eee;
+  padding: 32px 18px 32px 32px; box-shadow:0 0 12px rgba(0,0,0,.04);
+  display:flex; flex-direction:column; gap: 18px;
+}
+.right-panel {flex: 1;padding: 32px;display:flex;flex-direction:column;align-items:stretch;background: #f8f9fa;}
+.card{background:#fff;border:1px solid #ccc;border-radius:6px;padding:16px;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,.07)}
+.btn{padding:8px 14px;margin:4px 0;border:1px solid #007b83;background:#00a2b8;color:#fff;border-radius:4px;cursor:pointer;transition:.2s}
+.btn.alt{background:#6c757d;border-color:#6c757d}
+.btn.session{background:#FF9800;border-color:#FF9800}
+select,textarea,input[type=text],input[type=file]{width:100%;padding:6px;margin:4px 0 12px;box-sizing:border-box}
+textarea{height:120px;resize:vertical;font-family:monospace}
+.muted{color:#666;font-size:.9em}
+.tags{margin:10px 0;}
+.tag{display:inline-block;background:#00a2b8;color:#fff;border-radius:12px;padding:4px 10px;margin:2px;font-size:.98em}
+.tag button{background:transparent;border:none;color:#fff;margin-left:6px;font-weight:bold;cursor:pointer}
+#output{font-size:1em;height: calc(100vh - 120px);max-height:700px;min-height:300px}
+.tablelist{margin: 8px 0; font-size:.96em;}
+.tablelist strong{color:#007b83}
+#relModalBg {position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.15); display: none; z-index: 20;}
+#relModal {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: #fff; border: 1px solid #007b83; border-radius: 10px; padding: 24px; min-width: 280px; z-index: 22; box-shadow:0 8px 36px rgba(0,0,0,.13);
+}
+#relModal strong{color:#007b83}
+#relModal select {margin-bottom: 16px;}
+@media (max-width: 800px) {
+  .container { flex-direction: column;}
+  .left-panel { width: 100%; border-right: none; border-bottom: 1px solid #eee; padding: 24px;}
+  .right-panel { padding: 24px;}
+  #output { height: 200px;}
+  #relModal {min-width: 180px;}
+}
+
+#tblCustomList .tblitem { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #e4ecef; }
+#tblCustomList .tblitem:last-child { border-bottom: none; }
+#tblCustomList strong { color: #007b83; font-size: 1.07em; }
+#tblCustomList .rel { color: #2196f3; margin-left: 8px; font-size: .94em; display: block; padding-left: 10px; border-left: 2px solid #b0c4ce; margin-top: 2px; }
+.btn-del { background: #f8d7da; border-color: #e46b72; color: #e46b72; margin-left: 8px; font-size: 1em; padding: 4px 8px; border-radius: 12px; cursor: pointer; }
+.btn-del:hover { background: #e46b72; color: #fff; }
+
+.where-controls-row{display:flex;gap:8px;align-items:center}
+.where-controls-row select{margin-bottom:12px}
+.where-action-row{display:flex;gap:8px;flex-wrap:wrap}
+.where-action-row .btn{margin-top:0}
+.where-list{margin-top:10px;max-height:150px;overflow:auto;border:1px solid #e3eaee;border-radius:8px;padding:8px;background:#fafcfd}
+.where-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #eef3f6;font-size:.92em}
+.where-item:last-child{border-bottom:none}
+.where-pill{display:inline-block;background:#eef7fb;color:#23527c;border-radius:999px;padding:2px 8px;font-size:.82em;margin-right:6px;font-weight:700}
+.where-expression{color:#334}
+
+.compact-tablelist{
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-top: 10px;
+}
+.tbl-card{
+  background:#fdfdfd;
+  border:1px solid #d9e3e8;
+  border-radius:10px;
+  padding:12px;
+  margin-bottom:10px;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+}
+.tbl-card-header{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:10px;
+}
+.tbl-card-title{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+  flex:1;
+}
+.tbl-card-title strong{
+  color:#007b83;
+  font-size:1em;
+  word-break:break-word;
+}
+.tbl-meta{
+  color:#666;
+  font-size:.9em;
+}
+.tbl-card-actions{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  flex-shrink:0;
+}
+.btn-mini{
+  padding:4px 8px;
+  font-size:.85em;
+  border-radius:8px;
+  border:1px solid #b8c8cf;
+  background:#fff;
+  cursor:pointer;
+}
+.btn-mini:hover{
+  background:#f3f7f9;
+}
+.tbl-card-body{
+  margin-top:10px;
+  padding-top:10px;
+  border-top:1px solid #eef3f6;
+}
+.tbl-section{
+  margin-bottom:10px;
+}
+.tbl-section-label{
+  color:#007b83;
+  font-size:.92em;
+  margin-bottom:4px;
+  font-weight:600;
+}
+.tbl-preview{
+  color:#444;
+  font-size:.92em;
+  line-height:1.5;
+  word-break:break-word;
+}
+.tbl-rel-list{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.tbl-rel-item{
+  color:#2196f3;
+  font-size:.9em;
+  padding-left:10px;
+  border-left:2px solid #b0c4ce;
+  word-break:break-word;
+}
+.tbl-empty{
+  color:#888;
+  font-style:italic;
+  font-size:.92em;
+}
+.tbl-more{
+  color:#6b7d86;
+  font-size:.88em;
+  margin-top:4px;
+}
+
+.erd-wrap{
+  margin-top:20px;
+}
+.erd-container{
+  border:1px solid #d9e3e8;
+  border-radius:10px;
+  background:#fcfeff;
+  min-height:560px;
+  overflow:auto;
+  padding:16px;
+}
+.erd-empty{
+  color:#888;
+  font-style:italic;
+  font-size:.95em;
+}
+.erd-board{
+  position:relative;
+  min-width:1280px;
+  min-height:960px;
+}
+.erd-svg{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:auto;
+  z-index:1;
+}
+.erd-tooltip-layer{
+  position:absolute;
+  inset:0;
+  z-index:6;
+  pointer-events:none;
+}
+.erd-html-tooltip{
+  position:absolute;
+  width:220px;
+  background:#ffffff;
+  border:1px solid #cfe6ef;
+  border-radius:10px;
+  box-shadow:0 6px 16px rgba(0,0,0,.10);
+  padding:8px 10px;
+  display:none;
+}
+
+.erd-toggle{
+  position:relative;
+  z-index:20;
+  pointer-events:auto;
+}
+.erd-node{
+  position:absolute;
+  width:260px;
+  background:#fff;
+  border:1px solid #9fc8d2;
+  border-radius:8px;
+  box-shadow:0 1px 4px rgba(0,0,0,.05);
+  overflow:hidden;
+  z-index:3;
+  pointer-events:auto;
+}
+.erd-node-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:8px;
+  background:linear-gradient(90deg,#eef9f8 0%, #f8fcfd 100%);
+  border-bottom:1px solid #d8ecef;
+  padding:8px 10px;
+}
+.erd-node-title{
+  color:#007b83;
+  font-weight:700;
+  font-size:1em;
+  word-break:break-word;
+}
+.erd-node-meta{
+  color:#6c7a80;
+  font-size:.82em;
+  margin-top:2px;
+}
+.erd-toggle{
+  padding:4px 8px;
+  font-size:.78em;
+  border-radius:8px;
+  border:1px solid #b8c8cf;
+  background:#fff;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.erd-toggle:hover{
+  background:#f3f7f9;
+}
+.erd-node-body{
+  padding:8px 10px;
+  position:relative;
+  z-index:4;
+}
+.erd-col-list{
+  display:flex;
+  flex-direction:column;
+  gap:0;
+}
+.erd-col{
+  font-size:.88em;
+  color:#34454d;
+  padding:5px 0;
+  border-bottom:1px solid #eef3f6;
+  word-break:break-word;
+}
+.erd-col:last-child{
+  border-bottom:none;
+}
+.erd-col.join-key{
+  color:#23527c;
+  font-weight:700;
+}
+.erd-col.where-key{
+  color:#4c6b1f;
+  font-weight:700;
+}
+.erd-col.preview-key{
+  color:#6b7d86;
+}
+.erd-more{
+  color:#6b7d86;
+  font-size:.84em;
+  margin-top:6px;
+}
+.erd-scroll{
+  max-height:190px;
+  overflow:auto;
+  border:1px solid #eef3f6;
+  border-radius:6px;
+  padding:0 8px;
+  background:#fafcfd;
+  position:relative;
+  z-index:5;
+  pointer-events:auto;
+}
+.erd-edge{
+  stroke:#7fb6c3;
+  stroke-width:2;
+  fill:none;
+  opacity:.85;
+}
+.erd-edge-hit{
+  stroke:transparent;
+  stroke-width:18;
+  fill:none;
+  cursor:default;
+}
+.erd-edge-group:hover .erd-edge{
+  stroke:#4ea2b8;
+  stroke-width:3;
+}
+.erd-join-type{
+  color:#23527c;
+  font-weight:700;
+  font-size:.82em;
+  margin-bottom:4px;
+}
+.erd-join-cond{
+  color:#4a5b63;
+  font-size:.8em;
+  line-height:1.35;
+  word-break:break-word;
+}
+
+
+.where-combobox{
+  position:relative;
+  margin:4px 0 12px;
+}
+.where-combobox-toggle{
+  width:100%;
+  padding:10px 12px;
+  border:1px solid #9eb6c1;
+  border-radius:8px;
+  background:#fff;
+  color:#1f2d33;
+  text-align:left;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  font-size:1em;
+}
+.where-combobox-toggle:hover{
+  background:#f8fbfc;
+}
+.where-combobox-caret{
+  color:#5c717b;
+  flex-shrink:0;
+}
+.where-combobox-panel{
+  position:absolute;
+  left:0;
+  right:0;
+  top:calc(100% + 6px);
+  background:#fff;
+  border:1px solid #9eb6c1;
+  border-radius:10px;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);
+  z-index:50;
+  overflow:hidden;
+}
+.where-combobox-search{
+  width:100%;
+  padding:10px 12px;
+  border:none;
+  border-bottom:1px solid #e4edf1;
+  outline:none;
+  box-sizing:border-box;
+}
+.where-combobox-options{
+  max-height:240px;
+  overflow:auto;
+}
+.where-combobox-option{
+  padding:10px 12px;
+  cursor:pointer;
+  border-bottom:1px solid #f1f5f7;
+  word-break:break-word;
+}
+.where-combobox-option:last-child{
+  border-bottom:none;
+}
+.where-combobox-option:hover,
+.where-combobox-option.active{
+  background:#eef7fb;
+  color:#23527c;
+}
+.where-combobox-empty{
+  padding:12px;
+  color:#7a8b92;
+  font-style:italic;
+}
+
+
+.where-token{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 12px;
+  border-bottom:1px solid #e8eef2;
+}
+.where-token:last-child{
+  border-bottom:none;
+}
+.where-token-left{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:10px;
+}
+.where-paren{
+  font-size:1.6em;
+  line-height:1;
+  color:#2b3d45;
+  font-weight:700;
+}
+.where-warning{
+  margin-top:8px;
+  color:#8a5d00;
+  background:#fff7db;
+  border:1px solid #f2e3a0;
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:.95em;
+}
+
+</style>
+</head>
+<body>
+  <div style="text-align:center;padding:32px 0 0 0;background:linear-gradient(90deg,#00c7b8 0%, #007b83 100%);margin-bottom:22px;box-shadow:0 4px 24px 0 rgba(0,0,0,0.09);">
+    <div style="display:inline-block; background:rgba(255,255,255,0.97); border-radius:22px; padding:24px 48px 18px 48px; box-shadow:0 1px 8px 0 rgba(0,0,0,0.05);">
+      <h1 style="font-size:2.7em;letter-spacing:-1px;margin:0 0 10px 0; color:#007b83; font-weight:800;">SQL Join Generator</h1>
+      <div style="color:#00a2b8; font-size:1.18em; font-weight:600; letter-spacing:.5px;"></div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="left-panel">
+      <div class="card" style="background:#e8f4fd;border:1px solid #b3d7f5;">
+        <strong style="color:#007b83;">🚀 Quick Start</strong><br>
+        <div class="muted" style="margin:6px 0 10px;">No tables yet? Load sample data to see the tool in action.</div>
+        <button class="btn" id="loadSampleBtn" style="background:#007b83;border-color:#007b83;">Load sample tables</button>
+      </div>
+
+      <div class="card">
+        <strong>Build query (join order):</strong><br>
+        <select id="tblSelect"></select>
+        <button class="btn" id="addTbl">Add table</button>
+        <div class="tags" id="tagList"></div>
+        <button class="btn alt" id="resetSelect">Clear selection</button>
+        <button class="btn session" id="resetSession">Clear session/selection</button>
+      </div>
+
+      <div class="card">
+        <strong>Assisted WHERE clause (optional)</strong><br>
+        
+        <div class="where-combobox" id="whereColCombo">
+          <button type="button" class="where-combobox-toggle" id="whereColToggle">
+            <span id="whereColLabel">Select a column...</span>
+            <span class="where-combobox-caret">▾</span>
+          </button>
+          <div class="where-combobox-panel" id="whereColPanel" style="display:none;">
+            <input type="text" id="whereColSearch" class="where-combobox-search" placeholder="Search column...">
+            <div id="whereColOptions" class="where-combobox-options"></div>
+          </div>
+          <input type="hidden" id="whereCol">
+        </div>
+
+        <div class="where-controls-row">
+          <select id="whereOperator">
+            <option value="=">=</option>
+            <option value="<>">&lt;&gt;</option>
+            <option value=">">&gt;</option>
+            <option value=">=">&gt;=</option>
+            <option value="<">&lt;</option>
+            <option value="<=">&lt;=</option>
+            <option value="LIKE">LIKE</option>
+            <option value="NOT LIKE">NOT LIKE</option>
+            <option value="IN">IN</option>
+            <option value="NOT IN">NOT IN</option>
+            <option value="BETWEEN">BETWEEN</option>
+            <option value="IS NULL">IS NULL</option>
+            <option value="IS NOT NULL">IS NOT NULL</option>
+            <option value="Contains">Contains</option>
+            <option value="Starts with">Starts with</option>
+            <option value="Ends with">Ends with</option>
+          </select>
+          <select id="whereJoinType" title="Join with previous condition">
+            <option value="AND">AND</option>
+            <option value="OR">OR</option>
+          </select>
+        </div>
+        <input type="text" id="whereVal" placeholder="Value (without quotes)">
+        <div class="where-action-row">
+          <button class="btn" id="setWhere">Add WHERE</button>
+          <button class="btn alt2" id="addOpenParen">Add (</button>
+          <button class="btn alt2" id="addCloseParen">Add )</button>
+          <button class="btn alt" id="clearWhere">Clear all</button>
+        </div>
+        <div id="whereList" class="where-list"><em>No filters applied.</em></div>
+      </div>
+
+      <div class="card">
+        <strong>Add database table (paste DDL):</strong><br>
+        <div class="muted" style="margin-bottom:8px;">The alias will automatically match the table name.</div>
+        <textarea id="ddlInput" placeholder="Paste the table column definitions here (from DB Select)"></textarea>
+        <input id="ddlTblName" placeholder="Table name (ex: CT_CAR)">
+        <button class="btn" id="parseDDLBtn">Detect and add</button>
+        <div class="muted" id="detectedRels"></div>
+      </div>
+
+      <div class="card">
+        <strong>Export / Import your tables and joins</strong>
+        <button class="btn" id="exportBtn">Export</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="file" id="importFile" accept=".sjgdat,.json" style="flex:1">
+          <button class="btn" id="importBtn">Import</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <strong>Your available tables</strong>
+        <input type="text" id="tblSearch" placeholder="Search table name..." style="margin-top:10px">
+        <div id="tblCustomList" class="tablelist compact-tablelist"></div>
+        <button class="btn alt" id="clearCustoms">Reset custom tables/joins</button>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="card" style="flex:1;display:flex;flex-direction:column;">
+        <strong style="margin-bottom:8px;">Generated SQL</strong>
+        <textarea id="output" readonly style="flex:1;"></textarea>
+        <button class="btn" id="copyBtn" style="margin-top:10px;align-self:flex-end;">Copy to clipboard</button>
+        <strong style="margin:18px 0 8px 0;">SQL with all columns</strong>
+        <textarea id="outputFullCols" readonly style="min-height:38px;max-height:400px;overflow:auto;margin-bottom:4px;resize:none;"></textarea>
+        <button class="btn" id="copyBtnFullCols" style="align-self:flex-end;">Copy SQL columns</button>
+        <button class="btn alt" id="formatBtnFullCols" style="align-self:flex-end;">Format SQL</button>
+
+        <div class="erd-wrap">
+          <strong style="margin-bottom:8px;display:block;">Query Relationship Diagram</strong>
+          <div id="erdContainer" class="erd-container">
+            <div class="erd-empty">No tables selected yet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="relModalBg">
+    <div id="relModal">
+      <div id="autoRelSection">
+        <strong>Which existing table do you want to relate it to?</strong><br>
+        <select id="relTblSelect"></select>
+        <div id="relFieldOptions"></div>
+        <div class="button-row">
+          <button class="btn" id="confirmRelBtn">Confirm relationship</button>
+          <button class="btn alt2" id="openManualRelBtn">Create manual relationship</button>
+          <button class="btn alt" id="cancelRelBtn">Cancel</button>
+        </div>
+      </div>
+
+      <div id="manualRelSection" style="display:none">
+        <div class="section-title">Create a manual relationship</div>
+        <div class="muted">
+          Use this when the program cannot find a FK/PK relationship automatically.
+        </div>
+
+        <div class="manual-box">
+          <div class="manual-grid">
+            <div>
+              <label for="manualExistingTbl">Existing table already in query</label>
+              <select id="manualExistingTbl"></select>
+            </div>
+            <div>
+              <label for="manualNewTbl">New table to add</label>
+              <input id="manualNewTbl" type="text" readonly>
+            </div>
+            <div>
+              <label for="manualExistingCol">Column in existing table</label>
+              <select id="manualExistingCol"></select>
+            </div>
+            <div>
+              <label for="manualNewCol">Column in new table</label>
+              <select id="manualNewCol"></select>
+            </div>
+          </div>
+
+          <div class="manual-divider">
+            <strong>JOIN type:</strong><br>
+            <label><input type="radio" name="manualJoinType" value="INNER JOIN" checked> INNER</label>
+            <label><input type="radio" name="manualJoinType" value="LEFT JOIN"> LEFT</label>
+            <label><input type="radio" name="manualJoinType" value="RIGHT JOIN"> RIGHT</label>
+
+            <div class="small-note">
+              Example: <code>ExistingTable.ColA = NewTable.ColB</code>
+            </div>
+          </div>
+        </div>
+
+        <div class="button-row">
+          <button class="btn" id="saveManualRelBtn">Save and use relationship</button>
+          <button class="btn alt2" id="backToAutoRelBtn">Back</button>
+          <button class="btn alt" id="cancelManualRelBtn">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+function getCustomTables() {
+  return JSON.parse(localStorage.getItem('customTablesv2') || '[]');
+}
+
+function saveCustomTable(obj) {
+  let arr = getCustomTables();
+  arr = arr.filter(o => o.tbl !== obj.tbl);
+  arr.push(obj);
+  localStorage.setItem('customTablesv2', JSON.stringify(arr));
+}
+
+function setCustomTables(arr) {
+  localStorage.setItem('customTablesv2', JSON.stringify(arr));
+}
+
+function getManualRelationships() {
+  try {
+    const data = JSON.parse(localStorage.getItem('manualRelationshipsV1') || '[]');
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function setManualRelationships(arr) {
+  localStorage.setItem('manualRelationshipsV1', JSON.stringify(Array.isArray(arr) ? arr : []));
+}
+
+
+function clearCustoms() {
+  localStorage.removeItem('customTablesv2');
+  localStorage.removeItem('manualRelationshipsV1');
+  renderCustomTables();
+  renderAll();
+}
+
+function parseDDL(ddl, tblName, alias) {
+  let lines = ddl.split(/\r?\n/);
+  let columns = [];
+  let relationships = {};
+
+  lines.forEach(line => {
+    let col = line.match(/^\s*([A-Z0-9_]+)\s/i);
+    if (col) {
+      let colName = col[1];
+      columns.push(colName);
+
+      let rel = line.match(/references\s+([A-Z0-9_]+)\(([A-Z0-9_]+)\)/i);
+      if (rel) {
+        let refTbl = rel[1], refCol = rel[2];
+        relationships[colName] = { refTbl, refCol };
+      }
+    }
+  });
+
+  return { tbl: tblName, alias, columns, relationships };
+}
+
+const ddlInput = document.getElementById('ddlInput'),
+      ddlTblName = document.getElementById('ddlTblName'),
+      parseDDLBtn = document.getElementById('parseDDLBtn'),
+      detectedRels = document.getElementById('detectedRels'),
+      tblCustomList = document.getElementById('tblCustomList'),
+      clearCustomsBtn = document.getElementById('clearCustoms'),
+      exportBtn = document.getElementById('exportBtn'),
+      importFile = document.getElementById('importFile'),
+      importBtn = document.getElementById('importBtn'),
+      tblSel = document.getElementById('tblSelect'),
+      addTbl = document.getElementById('addTbl'),
+      tagList = document.getElementById('tagList'),
+      resetSel = document.getElementById('resetSelect'),
+      resetSession = document.getElementById('resetSession'),
+      whereColSel = document.getElementById('whereCol'),
+      whereColToggle = document.getElementById('whereColToggle'),
+      whereColLabel = document.getElementById('whereColLabel'),
+      whereColPanel = document.getElementById('whereColPanel'),
+      whereColSearch = document.getElementById('whereColSearch'),
+      whereColOptions = document.getElementById('whereColOptions'),
+      whereOperatorSel = document.getElementById('whereOperator'),
+      whereJoinTypeSel = document.getElementById('whereJoinType'),
+      whereVal = document.getElementById('whereVal'),
+      setWhere = document.getElementById('setWhere'),
+      addOpenParen = document.getElementById('addOpenParen'),
+      addCloseParen = document.getElementById('addCloseParen'),
+      clearWhere = document.getElementById('clearWhere'),
+      whereList = document.getElementById('whereList'),
+      tblSearch = document.getElementById('tblSearch'),
+      out = document.getElementById('output'),
+      copyBtn = document.getElementById('copyBtn'),
+      outputFullCols = document.getElementById('outputFullCols'),
+      copyBtnFullCols = document.getElementById('copyBtnFullCols'),
+      erdContainer = document.getElementById('erdContainer');
+
+const relModalBg = document.getElementById('relModalBg'),
+      autoRelSection = document.getElementById('autoRelSection'),
+      relTblSelect = document.getElementById('relTblSelect'),
+      relFieldOptions = document.getElementById('relFieldOptions'),
+      confirmRelBtn = document.getElementById('confirmRelBtn'),
+      openManualRelBtn = document.getElementById('openManualRelBtn'),
+      manualRelSection = document.getElementById('manualRelSection'),
+      manualExistingTbl = document.getElementById('manualExistingTbl'),
+      manualNewTbl = document.getElementById('manualNewTbl'),
+      manualExistingCol = document.getElementById('manualExistingCol'),
+      manualNewCol = document.getElementById('manualNewCol'),
+      saveManualRelBtn = document.getElementById('saveManualRelBtn'),
+      backToAutoRelBtn = document.getElementById('backToAutoRelBtn'),
+      cancelRelBtn = document.getElementById('cancelRelBtn'),
+      cancelManualRelBtn = document.getElementById('cancelManualRelBtn');
+
+let chain = [];
+let joinsMap = [];
+let whereClauses = [];
+let expandedTables = {};
+let expandedDiagramTables = {};
+let currentWhereColumns = [];
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, function(m) {
+    return ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[m];
+  });
+}
+
+function previewList(arr, limit = 6) {
+  if (!arr || !arr.length) return '';
+  const shown = arr.slice(0, limit).join(', ');
+  const more = arr.length > limit ? `<div class="tbl-more">... +${arr.length - limit} more</div>` : '';
+  return `${escapeHtml(shown)}${more}`;
+}
+
+function renderCustomTables() {
+  const term = tblSearch.value.trim().toUpperCase();
+  const arr = getCustomTables().filter(t => !term || t.tbl.includes(term));
+  const manualRelationships = getManualRelationships();
+
+  tblCustomList.innerHTML = arr.map(t => {
+    const relEntries = Object.entries(t.relationships || {});
+    const manualRels = manualRelationships.filter(rel => rel.fromTbl === t.tbl || rel.toTbl === t.tbl);
+
+    const autoPreview = relEntries.slice(0, 5).map(([col, rel]) =>
+      `<div>${t.tbl}.${col} → ${rel.refTbl}.${rel.refCol}</div>`
+    ).join('');
+
+    const autoMore = relEntries.length > 5
+      ? `<div class="tbl-more">... +${relEntries.length - 5} more</div>` : '';
+
+    const manualPreview = manualRels.slice(0, 5).map(rel => {
+      const left = `${rel.fromTbl}.${rel.fromCol}`;
+      const right = `${rel.toTbl}.${rel.toCol}`;
+      return `<div>${left} → ${right} <span class="rel-badge-manual">manual</span></div>`;
+    }).join('');
+
+    const manualMore = manualRels.length > 5
+      ? `<div class="tbl-more">... +${manualRels.length - 5} more manual</div>` : '';
+
+    return `
+      <div class="tbl-card">
+        <div class="tbl-card-header">
+          <div>
+            <div class="tbl-name">${t.tbl}</div>
+            <div class="tbl-meta">Alias: ${t.alias} · ${t.columns.length} columns · ${relEntries.length + manualRels.length} relationships</div>
+          </div>
+          <div class="tbl-card-actions">
+            <button class="expand-btn" onclick="toggleCustomTableExpand('${t.tbl}')">Expand</button>
+            <button class="trash-btn" onclick="removeCustomTable('${t.tbl}')" title="Remove table">🗑</button>
+          </div>
+        </div>
+
+        <div class="tbl-card-details" id="details-${t.tbl}" style="display:none">
+          <div class="tbl-section">
+            <div class="tbl-section-label">Columns</div>
+            <div class="tbl-col-list">
+              ${t.columns.slice(0, 15).map(c => `<div>${c}</div>`).join('')}
+              ${t.columns.length > 15 ? `<div class="tbl-more">... +${t.columns.length - 15} more</div>` : ''}
+            </div>
+          </div>
+
+          <div class="tbl-section">
+            <div class="tbl-section-label">Relationships</div>
+            <div class="tbl-rel-list">
+              ${relEntries.length ? autoPreview + autoMore : '<span class="tbl-empty">No detected relationships.</span>'}
+              ${manualRels.length ? `<div style="margin-top:8px">${manualPreview + manualMore}</div>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+window.toggleTableDetails = function(tblName) {
+  expandedTables[tblName] = !expandedTables[tblName];
+  renderCustomTables();
+};
+
+function getAvailableConfig() {
+  const arr = getCustomTables();
+  const manualRelationships = getManualRelationships();
+  const rels = [], aliases = {}, columns = {};
+
+  arr.forEach(tbl => {
+    aliases[tbl.tbl] = tbl.alias;
+    columns[tbl.tbl] = tbl.columns;
+
+    Object.entries(tbl.relationships || {}).forEach(([col, rel]) => {
+      rels.push({
+        fromTbl: tbl.tbl,
+        fromCol: col,
+        toTbl: rel.refTbl,
+        toCol: rel.refCol,
+        isManual: false
+      });
+    });
+  });
+
+  manualRelationships.forEach(rel => {
+    rels.push({
+      fromTbl: rel.fromTbl,
+      fromCol: rel.fromCol,
+      toTbl: rel.toTbl,
+      toCol: rel.toCol,
+      isManual: true
+    });
+  });
+
+  return { rels, aliases, columns };
+}
+
+function getRelationshipDetails(config, fromTbl, toTbl) {
+  return config.rels.filter(rel =>
+    (rel.fromTbl === fromTbl && rel.toTbl === toTbl) ||
+    (rel.fromTbl === toTbl && rel.toTbl === fromTbl)
+  ).map(rel => ({ ...rel }));
+}
+
+
+function setSelectedWhereColumn(value) {
+  whereColSel.value = value || '';
+  whereColLabel.textContent = value || 'Select a column...';
+  renderWhereColumnOptions(whereColSearch ? whereColSearch.value : '');
+}
+
+function renderWhereColumnOptions(filterText = '') {
+  if (!whereColOptions) return;
+  const filter = String(filterText || '').trim().toLowerCase();
+  const filtered = !filter
+    ? currentWhereColumns
+    : currentWhereColumns.filter(c => c.toLowerCase().includes(filter));
+
+  if (!filtered.length) {
+    whereColOptions.innerHTML = '<div class="where-combobox-empty">No matching columns found.</div>';
+    return;
+  }
+
+  whereColOptions.innerHTML = filtered.map(col => `
+    <div class="where-combobox-option ${whereColSel.value === col ? 'active' : ''}" data-value="${escapeHtml(col)}">
+      ${escapeHtml(col)}
+    </div>
+  `).join('');
+
+  Array.from(whereColOptions.querySelectorAll('.where-combobox-option')).forEach(opt => {
+    opt.addEventListener('click', () => {
+      setSelectedWhereColumn(opt.getAttribute('data-value'));
+      whereColPanel.style.display = 'none';
+    });
+  });
+}
+
+function refreshCols(config){
+  const cols = new Set();
+  chain.forEach(t => config.columns[t]?.forEach(c => cols.add(`${config.aliases[t]}.${c}`)));
+  currentWhereColumns = Array.from(cols).sort();
+
+  const previous = whereColSel.value;
+  if (currentWhereColumns.includes(previous)) {
+    setSelectedWhereColumn(previous);
+  } else {
+    setSelectedWhereColumn(currentWhereColumns[0] || '');
+  }
+}
+
+
+function renderTags() {
+  tagList.innerHTML = "";
+  chain.forEach((tbl, idx) => {
+    const span = document.createElement('span');
+    span.className = "tag";
+    span.textContent = tbl;
+
+    const btn = document.createElement('button');
+    btn.innerHTML = "&times;";
+    btn.title = "Remove table";
+    btn.onclick = () => {
+      chain.splice(idx, 1);
+      joinsMap = joinsMap.filter(j => j.from !== tbl && j.to !== tbl);
+      whereClauses = [];
+      renderAll();
+    };
+
+    span.appendChild(btn);
+    tagList.appendChild(span);
+  });
+}
+
+function formatWhereValue(v, operator) {
+  const raw = String(v).trim();
+  const escapeSql = s => String(s).replace(/'/g, "''");
+  const isNumeric = s => /^-?\d+(\.\d+)?$/.test(String(s).trim());
+
+  if (operator === 'IN' || operator === 'NOT IN') {
+    const parts = raw.split(',').map(s => s.trim()).filter(Boolean);
+    return '(' + parts.map(p => isNumeric(p) ? p : `'${escapeSql(p)}'`).join(', ') + ')';
+  }
+
+  if (operator === 'BETWEEN') {
+    let parts = raw.split(/\s+AND\s+/i);
+    if (parts.length !== 2) {
+      parts = raw.split(',').map(s => s.trim());
+    }
+    if (parts.length !== 2) {
+      throw new Error("For BETWEEN, use: start,end or start AND end");
+    }
+    const [a, b] = parts;
+    const fmt = x => isNumeric(x) ? x : `'${escapeSql(x)}'`;
+    return `${fmt(a)} AND ${fmt(b)}`;
+  }
+
+  if (operator === 'Contains') {
+    return `LIKE '%${escapeSql(raw)}%'`;
+  }
+
+  if (operator === 'Starts with') {
+    return `LIKE '${escapeSql(raw)}%'`;
+  }
+
+  if (operator === 'Ends with') {
+    return `LIKE '%${escapeSql(raw)}'`;
+  }
+
+  if (operator === 'LIKE' || operator === 'NOT LIKE') {
+    return `'${escapeSql(raw)}'`;
+  }
+
+  return isNumeric(raw) ? raw : `'${escapeSql(raw)}'`;
+}
+
+function hasLeadingJoinAt(idx) {
+  if (idx <= 0) return false;
+  const prev = whereClauses[idx - 1];
+  const curr = whereClauses[idx];
+  if (!curr || curr.type === 'close') return false;
+  return prev.type !== 'open';
+}
+
+function buildWhereClauseSql() {
+  if (!whereClauses.length) return '';
+
+  const parts = [];
+  whereClauses.forEach((item, idx) => {
+    if (item.type === 'open') {
+      parts.push(hasLeadingJoinAt(idx) ? `${item.joinType} (` : '(');
+      return;
+    }
+
+    if (item.type === 'close') {
+      parts.push(')');
+      return;
+    }
+
+    const expr = item.valueSql
+      ? `${item.col} ${item.operator} ${item.valueSql}`
+      : `${item.col} ${item.operator}`;
+
+    parts.push(hasLeadingJoinAt(idx) ? `${item.joinType} ${expr}` : expr);
+  });
+
+  return 'WHERE ' + parts.join(' ');
+}
+
+function getWhereParenBalance() {
+  let balance = 0;
+  whereClauses.forEach(item => {
+    if (item.type === 'open') balance++;
+    if (item.type === 'close') balance--;
+  });
+  return balance;
+}
+
+function renderWhereList() {
+  if (!whereClauses.length) {
+    whereList.innerHTML = '<em>No filters applied.</em>';
+    return;
+  }
+
+  const itemsHtml = whereClauses.map((item, idx) => {
+    const joinBadge = hasLeadingJoinAt(idx) ? `<span class="where-pill">${escapeHtml(item.joinType)}</span>` : '';
+
+    if (item.type === 'open') {
+      return `
+        <div class="where-token">
+          <div class="where-token-left">
+            ${joinBadge}
+            <span class="where-paren">(</span>
+          </div>
+          <button class="btn-mini" onclick="removeWhereClause(${idx})">Remove</button>
+        </div>
+      `;
+    }
+
+    if (item.type === 'close') {
+      return `
+        <div class="where-token">
+          <div class="where-token-left">
+            <span class="where-paren">)</span>
+          </div>
+          <button class="btn-mini" onclick="removeWhereClause(${idx})">Remove</button>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="where-item">
+        <div class="where-expression">
+          ${joinBadge}
+          ${escapeHtml(item.col)} ${escapeHtml(item.operator)} ${escapeHtml(item.valueSql || '')}
+        </div>
+        <button class="btn-mini" onclick="removeWhereClause(${idx})">Remove</button>
+      </div>
+    `;
+  }).join('');
+
+  const balance = getWhereParenBalance();
+  const warning = balance !== 0
+    ? `<div class="where-warning">Parentheses are not balanced yet.</div>`
+    : '';
+
+  whereList.innerHTML = itemsHtml + warning;
+}
+
+window.removeWhereClause = function(idx) {
+  whereClauses.splice(idx, 1);
+  renderAll();
+}
+
+
+function getColumnsUsedByTable(config) {
+  const used = {};
+  Object.keys(config.columns).forEach(tbl => used[tbl] = []);
+
+  joinsMap.forEach(j => {
+    if (!j.joinDetail) return;
+    const jd = j.joinDetail;
+    const leftCol = jd.fromCol.replace('_reverse','');
+    const rightCol = jd.toCol.replace('_reverse','');
+
+    if (!used[jd.fromTbl]) used[jd.fromTbl] = [];
+    if (!used[jd.toTbl]) used[jd.toTbl] = [];
+
+    used[jd.fromTbl].push({ name: leftCol, type: 'join-key' });
+    used[jd.toTbl].push({ name: rightCol, type: 'join-key' });
+  });
+
+  whereClauses.forEach(w => {
+    if (!w.col || !w.col.includes('.')) return;
+    const parts = w.col.split('.');
+    const tblAlias = parts[0];
+    const colName = parts.slice(1).join('.');
+    const tblName = Object.keys(config.aliases).find(t => config.aliases[t] === tblAlias) || tblAlias;
+
+    if (!used[tblName]) used[tblName] = [];
+    used[tblName].push({ name: colName, type: 'where-key' });
+  });
+
+  Object.keys(used).forEach(tbl => {
+    const dedup = new Map();
+    used[tbl].forEach(item => {
+      const existing = dedup.get(item.name);
+      if (!existing) {
+        dedup.set(item.name, item.type);
+      } else if (existing !== 'join-key' && item.type === 'join-key') {
+        dedup.set(item.name, 'join-key');
+      } else if (existing === 'preview-key' && item.type !== 'preview-key') {
+        dedup.set(item.name, item.type);
+      }
+    });
+    used[tbl] = Array.from(dedup.entries()).map(([name, type]) => ({ name, type }));
+  });
+
+  return used;
+}
+
+function estimateNodeHeight(tbl, config) {
+  return expandedDiagramTables[tbl] ? 320 : 150;
+}
+
+
+function getGraphInfo() {
+  const degree = {};
+  const adjacency = {};
+  chain.forEach(tbl => {
+    degree[tbl] = 0;
+    adjacency[tbl] = [];
+  });
+
+  joinsMap.forEach(j => {
+    if (degree[j.from] !== undefined) degree[j.from] += 1;
+    if (degree[j.to] !== undefined) degree[j.to] += 1;
+    if (adjacency[j.from] && !adjacency[j.from].includes(j.to)) adjacency[j.from].push(j.to);
+    if (adjacency[j.to] && !adjacency[j.to].includes(j.from)) adjacency[j.to].push(j.from);
+  });
+
+  let hub = chain[0] || null;
+  chain.forEach(tbl => {
+    if (degree[tbl] > degree[hub]) hub = tbl;
+  });
+
+  return { degree, hub, adjacency };
+}
+
+function overlaps(pos, existing, nodeW, nodeH) {
+  return existing.some(e =>
+    !(pos.left + nodeW + 30 < e.left || e.left + nodeW + 30 < pos.left || pos.top + nodeH + 30 < e.top || e.top + nodeH + 30 < pos.top)
+  );
+}
+
+function getPresetPositions(nodes, hub, adjacency) {
+  const W = 1280;
+  const H = 960;
+  const nodeW = 260;
+  const nodeH = 170;
+  const positions = {};
+  const placed = [];
+
+  function place(tbl, left, top) {
+    positions[tbl] = { left, top };
+    placed.push({ left, top });
+  }
+
+  if (nodes.length === 1) {
+    place(nodes[0], (W - nodeW) / 2, 180);
+    return { positions, W, H, nodeW, nodeH };
+  }
+
+  if (nodes.length === 2) {
+    place(nodes[0], 220, 340);
+    place(nodes[1], 800, 340);
+    return { positions, W, H, nodeW, nodeH };
+  }
+
+  const centerX = (W - nodeW) / 2;
+  const centerY = 350;
+  place(hub, centerX, centerY);
+
+  const primarySlots = [
+    { key: 'top', left: centerX, top: 80 },
+    { key: 'right', left: 940, top: centerY },
+    { key: 'left', left: 80, top: centerY },
+    { key: 'bottom', left: centerX, top: 650 },
+    { key: 'topRight', left: 900, top: 110 },
+    { key: 'topLeft', left: 120, top: 110 },
+    { key: 'bottomRight', left: 900, top: 620 },
+    { key: 'bottomLeft', left: 120, top: 620 }
+  ];
+
+  const slotByNode = {};
+  const direct = (adjacency[hub] || []).filter(n => nodes.includes(n)).sort((a, b) => {
+    const ai = chain.indexOf(a), bi = chain.indexOf(b);
+    return ai - bi;
+  });
+
+  direct.forEach((tbl, idx) => {
+    const slot = primarySlots[idx] || { key: 'fallback' + idx, left: 80 + ((idx % 4) * 290), top: 80 + (Math.floor(idx / 4) * 220) };
+    place(tbl, slot.left, slot.top);
+    slotByNode[tbl] = slot.key;
+  });
+
+  const remaining = nodes.filter(n => !positions[n]);
+
+  const secondaryByParent = {
+    top: [{ left: 900, top: 80 }, { left: 120, top: 80 }, { left: 900, top: 250 }],
+    right: [{ left: 940, top: 140 }, { left: 940, top: 560 }, { left: 820, top: 760 }],
+    left: [{ left: 80, top: 140 }, { left: 80, top: 560 }, { left: 200, top: 760 }],
+    bottom: [{ left: 900, top: 650 }, { left: 120, top: 650 }, { left: 900, top: 500 }],
+    topRight: [{ left: 980, top: 250 }, { left: 980, top: 480 }],
+    topLeft: [{ left: 40, top: 250 }, { left: 40, top: 480 }],
+    bottomRight: [{ left: 980, top: 500 }, { left: 820, top: 780 }],
+    bottomLeft: [{ left: 40, top: 500 }, { left: 200, top: 780 }]
+  };
+
+  remaining.forEach((tbl, idx) => {
+    const parent = (adjacency[tbl] || []).find(n => positions[n]) || hub;
+    const parentSlot = slotByNode[parent] || 'top';
+    const candidates = secondaryByParent[parentSlot] || [];
+    let placedFlag = false;
+    for (const c of candidates) {
+      if (!overlaps(c, placed, nodeW, nodeH)) {
+        place(tbl, c.left, c.top);
+        slotByNode[tbl] = parentSlot + '-child';
+        placedFlag = true;
+        break;
+      }
+    }
+    if (!placedFlag) {
+      let fallback = { left: 80 + ((idx % 4) * 290), top: 80 + (Math.floor(idx / 4) * 220) };
+      while (overlaps(fallback, placed, nodeW, nodeH)) {
+        fallback = { left: fallback.left, top: fallback.top + 30 };
+      }
+      place(tbl, fallback.left, fallback.top);
+    }
+  });
+
+  return { positions, W, H, nodeW, nodeH };
+}
+
+function getNodeAnchor(fromPos, toPos, fromHeight, toHeight, nodeW) {
+  const fromCx = fromPos.left + nodeW / 2;
+  const fromCy = fromPos.top + fromHeight / 2;
+  const toCx = toPos.left + nodeW / 2;
+  const toCy = toPos.top + toHeight / 2;
+  const dx = toCx - fromCx;
+  const dy = toCy - fromCy;
+
+  let x1 = fromCx, y1 = fromCy, x2 = toCx, y2 = toCy;
+
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    x1 = dx > 0 ? fromPos.left + nodeW : fromPos.left;
+    y1 = fromCy;
+    x2 = dx > 0 ? toPos.left : toPos.left + nodeW;
+    y2 = toCy;
+  } else {
+    x1 = fromCx;
+    y1 = dy > 0 ? fromPos.top + fromHeight : fromPos.top;
+    x2 = toCx;
+    y2 = dy > 0 ? toPos.top : toPos.top + toHeight;
+  }
+
+  return { x1, y1, x2, y2, mx: (x1 + x2) / 2, my: (y1 + y2) / 2, dx, dy };
+}
+
+
+function rectsOverlap(a, b) {
+  return !(a.left + a.width < b.left || b.left + b.width < a.left || a.top + a.height < b.top || b.top + b.height < a.top);
+}
+
+function getJoinBoxPosition(anchor, idx, W, H, fromPos, toPos, fromHeight, toHeight, placedBoxes) {
+  const boxW = 220;
+  const boxH = 74;
+  const fromRect = { left: fromPos.left, top: fromPos.top, width: 260, height: fromHeight };
+  const toRect = { left: toPos.left, top: toPos.top, width: 260, height: toHeight };
+
+  let left;
+  let top;
+
+  if (Math.abs(anchor.dx) >= Math.abs(anchor.dy)) {
+    left = anchor.mx - (boxW / 2);
+    top = Math.min(fromPos.top, toPos.top) - boxH - 18;
+
+    if (top < 12) {
+      top = Math.max(fromPos.top + fromHeight, toPos.top + toHeight) + 18;
+    }
+  } else {
+    top = anchor.my - (boxH / 2);
+
+    if (anchor.dx >= 0) {
+      left = Math.max(fromPos.left + 260, toPos.left + 260) + 18;
+    } else {
+      left = Math.min(fromPos.left, toPos.left) - boxW - 18;
+    }
+
+    if (left < 12) {
+      left = anchor.mx + 18;
+    }
+  }
+
+  let candidate = { left, top, width: boxW, height: boxH };
+  const blockers = [
+    fromRect,
+    toRect,
+    ...placedBoxes
+  ];
+
+  let attempts = 0;
+  while (blockers.some(b => rectsOverlap(candidate, b)) && attempts < 20) {
+    if (Math.abs(anchor.dx) >= Math.abs(anchor.dy)) {
+      candidate.top -= 16;
+      if (candidate.top < 12) {
+        candidate.top = Math.max(fromPos.top + fromHeight, toPos.top + toHeight) + 18 + (attempts * 10);
+      }
+    } else {
+      candidate.left += (anchor.dx >= 0 ? 14 : -14);
+      if (candidate.left < 12) candidate.left = 12;
+      if (candidate.left + candidate.width > W - 12) candidate.left = W - candidate.width - 12;
+    }
+    attempts += 1;
+  }
+
+  candidate.left = Math.max(12, Math.min(W - candidate.width - 12, candidate.left));
+  candidate.top = Math.max(12, Math.min(H - candidate.height - 12, candidate.top));
+
+  return { left: candidate.left, top: candidate.top, width: candidate.width, height: candidate.height };
+}
+
+
+
+function renderERDDiagram(config) {
+  if (!erdContainer) return;
+
+  if (!chain.length) {
+    erdContainer.innerHTML = '<div class="erd-empty">No tables selected yet.</div>';
+    return;
+  }
+
+  const usedCols = getColumnsUsedByTable(config);
+  const graph = getGraphInfo();
+  const setup = getPresetPositions(chain, graph.hub, graph.adjacency);
+  const positions = setup.positions;
+  const W = setup.W;
+  const H = setup.H;
+  const nodeW = setup.nodeW;
+
+  const nodeHtml = [];
+  const edgeHtml = [];
+  const tooltipHtml = [];
+
+  chain.forEach(tbl => {
+    const allCols = config.columns[tbl] || [];
+    const relevant = usedCols[tbl] || [];
+    const expanded = !!expandedDiagramTables[tbl];
+    const pos = positions[tbl];
+    const displayCols = expanded
+      ? allCols.map(name => {
+          const match = relevant.find(r => r.name === name);
+          return { name, type: match ? match.type : 'preview-key' };
+        })
+      : (relevant.length ? relevant.slice(0, 5) : allCols.slice(0, 3).map(name => ({ name, type: 'preview-key' })));
+
+    const hiddenCount = Math.max(allCols.length - displayCols.length, 0);
+    const bodyContent = displayCols.map(col => `<div class="erd-col ${col.type}">${escapeHtml(col.name)}</div>`).join('');
+    const body = expanded
+      ? `<div class="erd-scroll"><div class="erd-col-list">${bodyContent}</div></div>`
+      : `<div class="erd-col-list">${bodyContent}</div>`;
+
+    const nodeHeight = estimateNodeHeight(tbl, config);
+
+    nodeHtml.push(`
+      <div class="erd-node" style="left:${pos.left}px; top:${pos.top}px; min-height:${nodeHeight}px;">
+        <div class="erd-node-head">
+          <div>
+            <div class="erd-node-title">${escapeHtml(tbl)}</div>
+            <div class="erd-node-meta">${allCols.length} columns</div>
+          </div>
+          <button type="button" class="erd-toggle" data-table="${escapeHtml(tbl)}">${expanded ? 'Hide all' : 'Show all'}</button>
+        </div>
+        <div class="erd-node-body">
+          ${body}
+          <div class="erd-more">${expanded ? 'Full column list' : `... +${hiddenCount} columns`}</div>
+        </div>
+      </div>
+    `);
+  });
+
+  joinsMap.forEach((join, idx) => {
+    if (!join.joinDetail) return;
+    const jd = join.joinDetail;
+    const fromPos = positions[join.from];
+    const toPos = positions[join.to];
+    if (!fromPos || !toPos) return;
+
+    const fromHeight = estimateNodeHeight(join.from, config);
+    const toHeight = estimateNodeHeight(join.to, config);
+    const a = getNodeAnchor(fromPos, toPos, fromHeight, toHeight, nodeW);
+    const joinType = join.joinType || 'INNER JOIN';
+    const condition = `${jd.fromTbl}.${jd.fromCol.replace('_reverse','')} = ${jd.toTbl}.${jd.toCol.replace('_reverse','')}`;
+    const tipW = 220;
+    const tipH = 76;
+    let tipX = a.mx - (tipW / 2);
+    let tipY = a.my - tipH - 14;
+
+    if (tipX < 10) tipX = 10;
+    if (tipX + tipW > W - 10) tipX = W - tipW - 10;
+    if (tipY < 10) tipY = a.my + 14;
+    if (tipY + tipH > H - 10) tipY = H - tipH - 10;
+
+    const tipId = `join-tip-${idx}-${join.from}-${join.to}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    edgeHtml.push(`
+      <g class="erd-edge-group"
+         onmousemove="showJoinTooltip('${tipId}')"
+         onmouseenter="showJoinTooltip('${tipId}')"
+         onmouseleave="hideJoinTooltip('${tipId}')">
+        <line class="erd-edge-hit" x1="${a.x1}" y1="${a.y1}" x2="${a.x2}" y2="${a.y2}"></line>
+        <line class="erd-edge" x1="${a.x1}" y1="${a.y1}" x2="${a.x2}" y2="${a.y2}"></line>
+      </g>
+    `);
+
+    tooltipHtml.push(`
+      <div id="${tipId}" class="erd-html-tooltip" style="left:${tipX}px; top:${tipY}px;">
+        <div class="erd-join-type">${escapeHtml(joinType)}</div>
+        <div class="erd-join-cond">${escapeHtml(condition)}</div>
+      </div>
+    `);
+  });
+
+  erdContainer.innerHTML = `
+    <div class="erd-board">
+      <svg class="erd-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+        ${edgeHtml.join('')}
+      </svg>
+      <div class="erd-tooltip-layer">
+        ${tooltipHtml.join('')}
+      </div>
+      ${nodeHtml.join('')}
+    </div>
+  `;
+  bindDiagramToggleButtons();
+}
+
+window.toggleDiagramTable = function(tblName) {
+  expandedDiagramTables[tblName] = !expandedDiagramTables[tblName];
+  renderAll();
+};
+
+
+function bindDiagramToggleButtons() {
+  document.querySelectorAll('.erd-toggle[data-table]').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const tblName = this.getAttribute('data-table');
+      expandedDiagramTables[tblName] = !expandedDiagramTables[tblName];
+      renderAll();
+    });
+  });
+}
+
+window.showJoinTooltip = function(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'block';
+};
+
+window.hideJoinTooltip = function(id) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = 'none';
+};
+
+function formatarSQLFullCols() {
+
+  const ta = document.getElementById('outputFullCols');
+  if (!ta) return;
+
+  let sql = ta.value;
+  sql = sql
+    .replace(/,\s*/g, ',\n  ')
+    .replace(/\s+(FROM|INNER JOIN|LEFT JOIN|RIGHT JOIN|WHERE|GROUP BY|ORDER BY)\s+/gi, '\n$1 ')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+
+  ta.value = sql;
+}
+
+function autoResizeFullCols() {
+  const ta = document.getElementById('outputFullCols');
+  if (!ta) return;
+
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 400) + 'px';
+}
+
+function renderAll() {
+  renderCustomTables();
+
+  const config = getAvailableConfig();
+  tblSel.innerHTML = "";
+  Object.keys(config.aliases).sort().forEach(t => tblSel.add(new Option(t, t)));
+
+  renderTags();
+  refreshCols(config);
+  renderWhereList();
+  renderERDDiagram(config);
+
+  if (chain.length === 0) {
+    out.value = "";
+    outputFullCols.value = "";
+    return;
+  }
+
+  if (chain.length === 1) {
+    const baseTbl = chain[0];
+    out.value = `SELECT *\nFROM ${baseTbl} ${config.aliases[baseTbl]}`;
+    outputFullCols.value = `SELECT ${(config.columns[baseTbl] || []).map(col => `${config.aliases[baseTbl]}.${col}`).join(', ')}\nFROM ${baseTbl} ${config.aliases[baseTbl]}`;
+    autoResizeFullCols();
+    return;
+  }
+
+  let baseTbl = chain[0];
+  let sql = [`SELECT *`, `FROM ${baseTbl} ${config.aliases[baseTbl]}`];
+  let joinedTables = [baseTbl];
+
+  joinsMap.forEach(j => {
+    if (!j.joinDetail) {
+      sql.push(`-- Could not build JOIN between ${j.from} and ${j.to}`);
+      return;
+    }
+
+    const jd = j.joinDetail;
+    const fromTbl = jd.fromTbl;
+    const toTbl = jd.toTbl;
+    const fromCol = String(jd.fromCol || '').replace('_reverse','');
+    const toCol = String(jd.toCol || '').replace('_reverse','');
+    const joinType = j.joinType || "INNER JOIN";
+
+    const fromJoined = joinedTables.includes(fromTbl);
+    const toJoined = joinedTables.includes(toTbl);
+
+    if (fromJoined && !toJoined) {
+      sql.push(`${joinType} ${toTbl} ${config.aliases[toTbl]} ON ${config.aliases[fromTbl]}.${fromCol} = ${config.aliases[toTbl]}.${toCol}`);
+      joinedTables.push(toTbl);
+      return;
+    }
+
+    if (!fromJoined && toJoined) {
+      sql.push(`${joinType} ${fromTbl} ${config.aliases[fromTbl]} ON ${config.aliases[fromTbl]}.${fromCol} = ${config.aliases[toTbl]}.${toCol}`);
+      joinedTables.push(fromTbl);
+      return;
+    }
+
+    if (!fromJoined && !toJoined) {
+      if (joinedTables.includes(j.from)) {
+        const newTbl = (j.to === fromTbl || j.to === toTbl) ? j.to : toTbl;
+        if (newTbl === toTbl) {
+          sql.push(`${joinType} ${toTbl} ${config.aliases[toTbl]} ON ${config.aliases[fromTbl]}.${fromCol} = ${config.aliases[toTbl]}.${toCol}`);
+          joinedTables.push(toTbl);
+        } else {
+          sql.push(`${joinType} ${fromTbl} ${config.aliases[fromTbl]} ON ${config.aliases[fromTbl]}.${fromCol} = ${config.aliases[toTbl]}.${toCol}`);
+          joinedTables.push(fromTbl);
+        }
+      }
+      return;
+    }
+
+    // both tables are already in the SQL, so skip duplicate join
+  });
+
+  const whereClauseSql = buildWhereClauseSql();
+  if (whereClauseSql) sql.push(whereClauseSql);
+
+  out.value = sql.join("\n");
+
+  let sqlFullCols = "";
+  if (chain.length >= 2) {
+    let cols = [];
+    chain.forEach(tbl => {
+      let alias = config.aliases[tbl];
+      let tableCols = (config.columns[tbl] || []).map(col => `${alias}.${col}`);
+      cols.push(...tableCols);
+    });
+
+    let selectCols = cols.join(', ');
+    let sqlClone = [...sql];
+    sqlClone[0] = "SELECT " + selectCols;
+    sqlFullCols = sqlClone.join("\n");
+  }
+
+  outputFullCols.value = sqlFullCols;
+  autoResizeFullCols();
+}
+
+setWhere.onclick = () => {
+  if (!whereColSel.value) {
+    alert("Select a column.");
+    return;
+  }
+
+  const operator = whereOperatorSel.value;
+  const v = whereVal.value.trim();
+
+  if (operator === 'IS NULL' || operator === 'IS NOT NULL') {
+    whereClauses.push({
+      type: 'clause',
+      col: whereColSel.value,
+      operator,
+      joinType: whereJoinTypeSel.value,
+      valueSql: ''
+    });
+  } else {
+    if (!v) {
+      alert("Enter a value.");
+      return;
+    }
+
+    try {
+      whereClauses.push({
+        type: 'clause',
+        col: whereColSel.value,
+        operator,
+        joinType: whereJoinTypeSel.value,
+        valueSql: formatWhereValue(v, operator)
+      });
+    } catch (err) {
+      alert(err.message || String(err));
+      return;
+    }
+  }
+
+  whereVal.value = "";
+  renderAll();
+};
+
+addOpenParen.onclick = () => {
+  whereClauses.push({
+    type: 'open',
+    joinType: whereJoinTypeSel.value
+  });
+  renderAll();
+};
+
+addCloseParen.onclick = () => {
+  const openCount = whereClauses.filter(x => x.type === 'open').length;
+  const closeCount = whereClauses.filter(x => x.type === 'close').length;
+
+  if (closeCount >= openCount) {
+    alert("There is no open parenthesis to close.");
+    return;
+  }
+
+  whereClauses.push({
+    type: 'close'
+  });
+  renderAll();
+};
+
+clearWhere.onclick = () => {
+  whereClauses = [];
+  renderAll();
+};
+
+window.removeWhereClause = function(idx) {
+  whereClauses.splice(idx, 1);
+  renderAll();
+};
+
+addTbl.onclick = () => {
+  const config = getAvailableConfig();
+  const t = tblSel.value;
+
+  if (chain.includes(t)) {
+    alert("Table already added.");
+    return;
+  }
+
+  if (chain.length === 0) {
+    chain.push(t);
+    renderAll();
+    return;
+  }
+
+  showRelModal(t, config);
+};
+
+resetSel.onclick = () => {
+  chain = [];
+  whereClauses = [];
+  joinsMap = [];
+  renderAll();
+};
+
+resetSession.onclick = () => {
+  chain = [];
+  whereClauses = [];
+  joinsMap = [];
+  renderAll();
+};
+
+window.removeTable = function(tblName) {
+  if (confirm("Remove table " + tblName + "? This will delete the relationships for this table.")) {
+    let arr = getCustomTables().filter(t => t.tbl !== tblName);
+    setCustomTables(arr);
+
+    let manualRels = getManualRelationships().filter(rel =>
+      rel.fromTbl !== tblName && rel.toTbl !== tblName
+    );
+    setManualRelationships(manualRels);
+
+    chain = chain.filter(t => t !== tblName);
+    joinsMap = joinsMap.filter(j => j.from !== tblName && j.to !== tblName);
+    renderAll();
+  }
+};
+
+function showRelModal(newTbl, config) {
+  relTblSelect.innerHTML = "";
+  manualExistingTbl.innerHTML = "";
+  manualExistingCol.innerHTML = "";
+  manualNewCol.innerHTML = "";
+  manualNewTbl.value = newTbl;
+
+  const possible = [];
+
+  chain.forEach(existing => {
+    const rels = getRelationshipDetails(config, existing, newTbl);
+    if (rels.length > 0) possible.push({ tbl: existing, rels });
+  });
+
+  function populateManualColumns() {
+    const existingTbl = manualExistingTbl.value;
+    manualExistingCol.innerHTML = "";
+    (config.columns[existingTbl] || []).forEach(col => {
+      manualExistingCol.add(new Option(col, col));
+    });
+
+    manualNewCol.innerHTML = "";
+    (config.columns[newTbl] || []).forEach(col => {
+      manualNewCol.add(new Option(col, col));
+    });
+  }
+
+  function openManualMode(prefillExistingTbl) {
+    autoRelSection.style.display = "none";
+    manualRelSection.style.display = "block";
+
+    manualExistingTbl.innerHTML = "";
+    chain.forEach(tbl => manualExistingTbl.add(new Option(tbl, tbl)));
+
+    if (prefillExistingTbl && chain.includes(prefillExistingTbl)) {
+      manualExistingTbl.value = prefillExistingTbl;
+    } else if (chain.length) {
+      manualExistingTbl.value = chain[chain.length - 1];
+    }
+
+    populateManualColumns();
+  }
+
+  function openAutoMode() {
+    autoRelSection.style.display = "block";
+    manualRelSection.style.display = "none";
+  }
+
+  possible.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.tbl;
+    opt.textContent = p.tbl;
+    relTblSelect.appendChild(opt);
+  });
+
+  const joinTypeHtml = `
+    <div style="margin:10px 0;">
+      <strong>JOIN type:</strong><br>
+      <label><input type="radio" name="joinType" value="INNER JOIN" checked> INNER</label>
+      <label><input type="radio" name="joinType" value="LEFT JOIN"> LEFT</label>
+      <label><input type="radio" name="joinType" value="RIGHT JOIN"> RIGHT</label>
+    </div>
+  `;
+
+  const joinHelpHtml = `
+    <div style="background:#eef7fb;color:#23527c;padding:10px;border-radius:6px;margin-top:10px;font-size:0.96em;">
+      <strong>What does each type mean?</strong><br>
+      <ul style="padding-left:17px;margin:7px 0;">
+        <li><strong>INNER JOIN</strong>: shows only the records that exist in both tables.</li>
+        <li><strong>LEFT JOIN</strong>: shows ALL records from the left table, even if there is no match in the other table.</li>
+        <li><strong>RIGHT JOIN</strong>: shows ALL records from the right table, even if there is no match in the main table.</li>
+      </ul>
+    </div>
+  `;
+
+  function showRelFields() {
+    relFieldOptions.innerHTML = "";
+    const selected = relTblSelect.value || (possible[0] ? possible[0].tbl : "");
+    const group = possible.find(p => p.tbl === selected);
+    const rels = group ? group.rels : [];
+
+    if (rels.length > 1) {
+      relFieldOptions.innerHTML = "<strong>Choose the relationship:</strong><br>";
+      rels.forEach((rel, idx) => {
+        const manualBadge = rel.isManual ? ' <span class="rel-badge-manual">manual</span>' : '';
+        relFieldOptions.innerHTML += `<label><input type="radio" name="relField" value="${idx}" ${idx===0 ? "checked" : ""}> ${rel.fromTbl}.${rel.fromCol} → ${rel.toTbl}.${rel.toCol}${manualBadge}</label><br>`;
+      });
+    } else if (rels.length === 1) {
+      const manualBadge = rels[0].isManual ? ' <span class="rel-badge-manual">manual</span>' : '';
+      relFieldOptions.innerHTML += `${rels[0].fromTbl}.${rels[0].fromCol} → ${rels[0].toTbl}.${rels[0].toCol}${manualBadge}`;
+    } else {
+      relFieldOptions.innerHTML += '<span class="tbl-empty">No relationship found automatically.</span>';
+    }
+
+    relFieldOptions.innerHTML += joinTypeHtml;
+    relFieldOptions.innerHTML += joinHelpHtml;
+  }
+
+  manualExistingTbl.onchange = populateManualColumns;
+
+  if (possible.length === 0) {
+    openManualMode(chain[chain.length - 1] || chain[0]);
+  } else {
+    openAutoMode();
+    relTblSelect.value = possible[0].tbl;
+    showRelFields();
+    relTblSelect.onchange = showRelFields;
+  }
+
+  relModalBg.style.display = "block";
+
+  openManualRelBtn.onclick = () => {
+    openManualMode(relTblSelect.value || chain[chain.length - 1] || chain[0]);
+  };
+
+  backToAutoRelBtn.onclick = () => {
+    if (possible.length === 0) {
+      manualRelSection.style.display = "block";
+      autoRelSection.style.display = "none";
+    } else {
+      openAutoMode();
+      relTblSelect.value = relTblSelect.value || possible[0].tbl;
+      showRelFields();
+    }
+  };
+
+  confirmRelBtn.onclick = () => {
+    const selected = relTblSelect.value || (possible[0] ? possible[0].tbl : "");
+    const group = possible.find(p => p.tbl === selected);
+
+    if (!group) {
+      openManualMode(chain[chain.length - 1] || chain[0]);
+      return;
+    }
+
+    const rels = group.rels;
+    let idx = 0;
+
+    if (rels.length > 1) {
+      const radio = document.querySelector('input[name="relField"]:checked');
+      if (!radio) {
+        alert("Choose a relationship.");
+        return;
+      }
+      idx = parseInt(radio.value, 10);
+    }
+
+    const joinRadio = document.querySelector('input[name="joinType"]:checked');
+    const joinType = joinRadio ? joinRadio.value : "INNER JOIN";
+
+    chain.push(newTbl);
+    joinsMap.push({ from: selected, to: newTbl, joinDetail: rels[idx], joinType });
+    relModalBg.style.display = "none";
+    renderAll();
+  };
+
+  saveManualRelBtn.onclick = () => {
+    const existingTbl = manualExistingTbl.value;
+    const existingCol = manualExistingCol.value;
+    const newCol = manualNewCol.value;
+    const manualJoinRadio = document.querySelector('input[name="manualJoinType"]:checked');
+    const joinType = manualJoinRadio ? manualJoinRadio.value : "INNER JOIN";
+
+    if (!existingTbl || !existingCol || !newCol) {
+      alert("Select both columns for the manual relationship.");
+      return;
+    }
+
+    const manualRel = {
+      fromTbl: existingTbl,
+      fromCol: existingCol,
+      toTbl: newTbl,
+      toCol: newCol,
+      isManual: true
+    };
+
+    const saved = getManualRelationships();
+    const alreadyExists = saved.some(rel =>
+      rel.fromTbl === manualRel.fromTbl &&
+      rel.fromCol === manualRel.fromCol &&
+      rel.toTbl === manualRel.toTbl &&
+      rel.toCol === manualRel.toCol
+    );
+
+    if (!alreadyExists) {
+      saved.push(manualRel);
+      setManualRelationships(saved);
+    }
+
+    chain.push(newTbl);
+    joinsMap.push({ from: existingTbl, to: newTbl, joinDetail: manualRel, joinType });
+    relModalBg.style.display = "none";
+    renderAll();
+  };
+
+  cancelRelBtn.onclick = () => {
+    relModalBg.style.display = "none";
+  };
+
+  cancelManualRelBtn.onclick = () => {
+    relModalBg.style.display = "none";
+  };
+}
+
+copyBtn.onclick = () => {
+  navigator.clipboard.writeText(out.value).then(() => alert("Copied!"));
+};
+
+copyBtnFullCols.onclick = () => {
+  navigator.clipboard.writeText(outputFullCols.value).then(() => alert("Copied!"));
+};
+
+clearCustomsBtn.onclick = () => {
+  if (confirm("Remove all custom tables/joins?")) {
+    clearCustoms();
+    chain = [];
+    whereClauses = [];
+    joinsMap = [];
+    renderAll();
+  }
+};
+
+parseDDLBtn.onclick = () => {
+  let ddl = ddlInput.value.trim();
+  let tbl = ddlTblName.value.trim().toUpperCase();
+
+  if (!ddl || !tbl) {
+    alert("Fill in the DDL and table name.");
+    return;
+  }
+
+  let alias = tbl;
+  let obj = parseDDL(ddl, tbl, alias);
+
+  let rels = Object.entries(obj.relationships || {}).map(
+    ([col, rel]) => `${tbl}.${col} → ${rel.refTbl}.${rel.refCol}`
+  ).join("<br>");
+
+  detectedRels.innerHTML = rels
+    ? `<strong>Detected relationships:</strong><br>${rels}`
+    : '<em>No relationship detected.</em>';
+
+  if (confirm("Add this table and its joins to the system?")) {
+    saveCustomTable(obj);
+    ddlInput.value = "";
+    ddlTblName.value = "";
+    detectedRels.innerHTML = "";
+    renderAll();
+    alert("Table added!");
+  }
+};
+
+function toBase64Utf8(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+function fromBase64Utf8(str) {
+  return decodeURIComponent(escape(atob(str)));
+}
+
+function djb2Hash(str) {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) + str.charCodeAt(i);
+    hash = hash >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+function xorTransform(input, key) {
+  let out = '';
+  for (let i = 0; i < input.length; i++) {
+    out += String.fromCharCode(input.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  }
+  return out;
+}
+
+function encodeExportPayload(data) {
+  const json = JSON.stringify(data);
+  const base64 = toBase64Utf8(json);
+  const reversed = base64.split('').reverse().join('');
+  const xored = xorTransform(reversed, 'SJG_INTERNAL_V1');
+  const payload = btoa(xored);
+
+  return {
+    magic: 'SJGv1',
+    version: 1,
+    createdAt: new Date().toISOString(),
+    checksum: djb2Hash(json),
+    payload
+  };
+}
+
+function decodeImportPayload(fileText) {
+  const parsed = JSON.parse(fileText);
+
+  if (!parsed || parsed.magic !== 'SJGv1' || parsed.version !== 1 || typeof parsed.payload !== 'string') {
+    throw new Error('Invalid internal file format');
+  }
+
+  const xored = atob(parsed.payload);
+  const reversed = xorTransform(xored, 'SJG_INTERNAL_V1');
+  const base64 = reversed.split('').reverse().join('');
+  const json = fromBase64Utf8(base64);
+  const data = JSON.parse(json);
+
+  if (parsed.checksum && djb2Hash(json) !== parsed.checksum) {
+    throw new Error('File integrity validation failed');
+  }
+
+  // Backward compatibility with old export format (array only)
+  if (Array.isArray(data)) {
+    return { tables: data, manualRelationships: [] };
+  }
+
+  if (!data || !Array.isArray(data.tables)) {
+    throw new Error('Invalid table data');
+  }
+
+  if (!Array.isArray(data.manualRelationships)) {
+    data.manualRelationships = [];
+  }
+
+  return data;
+}
+
+exportBtn.onclick = () => {
+  const data = {
+    tables: getCustomTables(),
+    manualRelationships: getManualRelationships()
+  };
+  const encoded = encodeExportPayload(data);
+  const blob = new Blob([JSON.stringify(encoded, null, 2)], { type: "application/octet-stream" });
+
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "tables_and_joins.sjgdat";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
+importBtn.onclick = function() {
+  const file = importFile.files[0];
+  if (!file) {
+    alert("Select a file first!");
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = decodeImportPayload(e.target.result);
+      setCustomTables(data.tables);
+      setManualRelationships(data.manualRelationships || []);
+      chain = [];
+      whereClauses = [];
+      joinsMap = [];
+      renderAll();
+      alert("Data imported successfully!");
+    } catch (ex) {
+      alert("Import error: " + ex.message);
+    }
+    importFile.value = "";
+  };
+
+  reader.readAsText(file);
+};
+
+if (tblSearch) {
+  tblSearch.addEventListener('input', renderCustomTables);
+}
+
+
+if (whereColToggle) {
+  whereColToggle.addEventListener('click', () => {
+    const isOpen = whereColPanel.style.display !== 'none';
+    whereColPanel.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen && whereColSearch) {
+      whereColSearch.value = '';
+      renderWhereColumnOptions('');
+      setTimeout(() => whereColSearch.focus(), 0);
+    }
+  });
+}
+
+if (whereColSearch) {
+  whereColSearch.addEventListener('input', () => {
+    renderWhereColumnOptions(whereColSearch.value);
+  });
+}
+
+document.addEventListener('click', (event) => {
+  const combo = document.getElementById('whereColCombo');
+  if (!combo) return;
+  if (!combo.contains(event.target)) {
+    whereColPanel.style.display = 'none';
+  }
+});
+
+
+function updateWhereValueInput() {
+  const op = whereOperatorSel.value;
+  const noValue = (op === 'IS NULL' || op === 'IS NOT NULL');
+
+  whereVal.disabled = noValue;
+  if (op === 'IN' || op === 'NOT IN') {
+    whereVal.placeholder = 'Values separated by comma (ex: A,B,C)';
+  } else if (op === 'BETWEEN') {
+    whereVal.placeholder = 'Start,end or Start AND End';
+  } else if (op === 'Contains' || op === 'Starts with' || op === 'Ends with') {
+    whereVal.placeholder = 'Text value';
+  } else if (noValue) {
+    whereVal.placeholder = 'No value needed';
+    whereVal.value = '';
+  } else {
+    whereVal.placeholder = 'Value (without quotes)';
+  }
+}
+whereOperatorSel.addEventListener('change', updateWhereValueInput);
+updateWhereValueInput();
+
+document.getElementById('formatBtnFullCols').onclick = formatarSQLFullCols;
+
+document.getElementById('loadSampleBtn').onclick = function() {
+  const samples = [
+    {
+      tbl: 'EMPLOYEE',
+      alias: 'EMPLOYEE',
+      columns: ['EMPLOYEE_ID','FIRST_NAME','LAST_NAME','EMAIL','HIRE_DATE','SALARY','DEPT_ID','MANAGER_ID'],
+      relationships: { DEPT_ID: { refTbl: 'DEPARTMENT', refCol: 'DEPARTMENT_ID' }, MANAGER_ID: { refTbl: 'EMPLOYEE', refCol: 'EMPLOYEE_ID' } }
+    },
+    {
+      tbl: 'DEPARTMENT',
+      alias: 'DEPARTMENT',
+      columns: ['DEPARTMENT_ID','DEPT_NAME','LOCATION','BUDGET','MANAGER_ID'],
+      relationships: { MANAGER_ID: { refTbl: 'EMPLOYEE', refCol: 'EMPLOYEE_ID' } }
+    },
+    {
+      tbl: 'PAYROLL',
+      alias: 'PAYROLL',
+      columns: ['PAYROLL_ID','EMPLOYEE_ID','PAY_DATE','GROSS_AMOUNT','NET_AMOUNT','CURRENCY','STATUS'],
+      relationships: { EMPLOYEE_ID: { refTbl: 'EMPLOYEE', refCol: 'EMPLOYEE_ID' } }
+    }
+  ];
+  samples.forEach(s => saveCustomTable(s));
+  chain = [];
+  joinsMap = [];
+  whereClauses = [];
+  renderAll();
+  alert('Sample tables loaded! Select tables from the dropdown to build a query.');
+};
+
+window.toggleCustomTableExpand = function(tblName) {
+  const details = document.getElementById('details-' + tblName);
+  if (!details) return;
+  const expanded = details.style.display === 'block';
+  details.style.display = expanded ? 'none' : 'block';
+  const btn = document.querySelector('[onclick*="' + tblName + '"]');
+  if (btn) btn.textContent = expanded ? 'Expand' : 'Collapse';
+};
+
+renderAll();
+</script>
+</body>
+</html>

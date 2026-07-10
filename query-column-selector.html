@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}
+    body{background:#f8f9fa;min-height:100vh;display:flex;flex-direction:column;}
+    header{
+      padding:32px 0 18px 0;text-align:center;
+      background:linear-gradient(90deg,#00c7b8 0%,#007b83 100%);
+      box-shadow:0 4px 24px rgba(0,0,0,0.09);margin-bottom:22px;
+    }
+    header .header-inner{
+      display:inline-block;background:rgba(255,255,255,0.97);
+      border-radius:22px;padding:20px 48px 16px 48px;
+      box-shadow:0 1px 8px rgba(0,0,0,0.05);
+    }
+    header h1{font-size:2.2em;letter-spacing:-1px;color:#007b83;font-weight:800;margin:0 0 8px 0;}
+    main{flex:1;max-width:860px;margin:0 auto 32px;width:100%;padding:0 16px;}
+    .card{background:#fff;border:1px solid #ccc;border-radius:6px;padding:20px;margin-bottom:16px;box-shadow:0 2px 4px rgba(0,0,0,.07);}
+    label{font-weight:600;margin-bottom:8px;display:block;color:#1f2937;}
+    textarea{
+      width:100%;min-height:120px;font-size:1rem;
+      font-family:'Fira Mono','Menlo',monospace;
+      border-radius:8px;border:1.5px solid #b3c2d4;
+      padding:10px;margin-bottom:14px;resize:vertical;transition:border .2s;
+    }
+    textarea:focus{border:1.5px solid #007b83;outline:none;}
+    .btn{
+      padding:10px 22px;border:none;border-radius:6px;
+      background:#00a2b8;color:#fff;font-size:0.95rem;font-weight:600;
+      cursor:pointer;transition:.2s;margin-right:8px;margin-bottom:8px;
+    }
+    .btn:hover{background:#007b83;}
+    .btn-sample{background:#009688;}
+    .btn-sample:hover{background:#00796b;}
+    .columns-list{
+      margin:14px 0;padding:14px;border-radius:8px;
+      background:#f0f6fa;border:1px solid #d4e4f7;
+      display:flex;flex-wrap:wrap;gap:8px 16px;
+    }
+    .columns-list label{font-weight:400;font-size:0.97rem;margin-bottom:0;display:inline-flex;align-items:center;gap:4px;}
+    .select-preview-area{
+      width:100%;min-height:180px;max-height:60vh;
+      font-family:'Fira Mono','Menlo',monospace;font-size:0.98rem;
+      border-radius:8px;background:#1e2230;color:#e1e8ef;
+      margin-top:12px;resize:vertical;border:none;padding:14px;
+      overflow-y:auto;white-space:pre;
+    }
+    .copy-btn{
+      float:right;margin-top:8px;
+      padding:8px 18px;background:#00a2b8;color:#fff;border:none;
+      border-radius:6px;font-size:0.9rem;font-weight:600;cursor:pointer;
+    }
+    .copy-btn:hover{background:#007b83;}
+    @media(max-width:700px){main{padding:0 6px;}header .header-inner{padding:14px 18px 10px;}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Query Column Selector</h1>
+    </div>
+  </header>
+  <main>
+    <div class="card">
+      <label for="query-in">Paste your SQL query below:</label>
+      <textarea id="query-in" placeholder="Example: SELECT emp.emp_key, emp.emp_id, exp.name, ... FROM ..."></textarea>
+      <button class="btn" onclick="extractColumns()">Detect Columns</button>
+      <button class="btn btn-sample" onclick="loadSample()">🚀 Load sample</button>
+    </div>
+    <div id="columns-area" style="display:none" class="card">
+      <label>Select the columns you want to keep:</label>
+      <div id="columns-list" class="columns-list"></div>
+    </div>
+    <div id="preview-area" style="display:none" class="card">
+      <label style="margin-top:4px;">Edited query:</label>
+      <textarea class="select-preview-area" id="select-preview-area" readonly></textarea>
+      <button class="copy-btn" onclick="copyPreview()">Copy Full Query</button>
+    </div>
+  </main>
+  <script>
+    let originalQuery = "", beforeSelect = "", afterSelect = "";
+
+    function extractColumns() {
+      const query = document.getElementById('query-in').value;
+      originalQuery = query;
+      const selectMatch = query.match(/([\s\S]*?)select\s+(.*?)\s+from\s+/is);
+      if (!selectMatch) { alert("Invalid query or it was not possible to identify the columns."); return; }
+      beforeSelect = selectMatch[1] || "";
+      let colsStr = selectMatch[2];
+      let idxFrom = query.toLowerCase().indexOf('from ');
+      afterSelect = query.substring(idxFrom);
+      let columns = [], buffer = "", parens = 0;
+      for (let ch of colsStr) {
+        if (ch === ',' && parens === 0) { columns.push(buffer.trim()); buffer = ""; }
+        else { if (ch === '(') parens++; if (ch === ')') parens--; buffer += ch; }
+      }
+      if (buffer.trim()) columns.push(buffer.trim());
+      const columnObjs = columns.map(c => {
+        let aliasMatch = c.match(/as\s+([`"'[]?)([\w\s.-]+)\1/i) || c.match(/([`"'[])([\w\s.-]+)\1\s*$/i) || c.match(/(\[[^\]]+\])\s*$/);
+        let alias = aliasMatch ? aliasMatch[2] || aliasMatch[1] : null;
+        if (!alias) { let tmp = c.split("."); alias = tmp[tmp.length-1].replace(/[\[\]]/g,'').replace(/['"`]/g,'').trim(); }
+        return {full: c, alias: alias.trim()};
+      });
+      const columnsListDiv = document.getElementById('columns-list');
+      columnsListDiv.innerHTML = "";
+      columnObjs.forEach((col, idx) => {
+        const id = 'col_' + idx;
+        const label = document.createElement('label');
+        label.innerHTML = `<input type="checkbox" id="${id}" checked> ${col.alias}`;
+        columnsListDiv.appendChild(label);
+      });
+      document.getElementById('columns-area').style.display = '';
+      document.getElementById('preview-area').style.display = '';
+      updatePreview(columnObjs);
+      Array.from(columnsListDiv.querySelectorAll('input[type=checkbox]')).forEach((cb) => {
+        cb.addEventListener('change', () => updatePreview(columnObjs));
+      });
+    }
+
+    function updatePreview(columnObjs) {
+      const columnsListDiv = document.getElementById('columns-list');
+      const selectedCols = [];
+      Array.from(columnsListDiv.querySelectorAll('input[type=checkbox]')).forEach((cb, idx) => {
+        if (cb.checked) selectedCols.push(columnObjs[idx].full);
+      });
+      document.getElementById('select-preview-area').value = selectedCols.length > 0
+        ? `${beforeSelect}SELECT\n  ${selectedCols.join(',\n  ')}\n${afterSelect}`
+        : '-- No columns selected --';
+    }
+
+    function copyPreview() {
+      const textarea = document.getElementById('select-preview-area');
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+      document.execCommand('copy');
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy Full Query'; }, 1600);
+    }
+
+    function loadSample() {
+      document.getElementById('query-in').value =
+        'SELECT emp.employee_id, emp.first_name, emp.last_name, emp.email, emp.hire_date, emp.salary, ' +
+        'dept.department_id, dept.dept_name, dept.location, ' +
+        'pay.payroll_id, pay.pay_date, pay.gross_amount, pay.net_amount, pay.currency, pay.status ' +
+        'FROM EMPLOYEE emp ' +
+        'INNER JOIN DEPARTMENT dept ON emp.dept_id = dept.department_id ' +
+        'LEFT JOIN PAYROLL pay ON emp.employee_id = pay.employee_id ' +
+        "WHERE emp.hire_date >= '2024-01-01' AND dept.location = 'New York'";
+      extractColumns();
+    }
+  </script>
+</body>
+</html>

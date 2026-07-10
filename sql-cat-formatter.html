@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SQL Formatter</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}
+  body{background:#f8f9fa;min-height:100vh;display:flex;flex-direction:column;}
+  header{
+    padding:32px 0 18px 0;text-align:center;
+    background:linear-gradient(90deg,#00c7b8 0%,#007b83 100%);
+    box-shadow:0 4px 24px rgba(0,0,0,0.09);margin-bottom:22px;
+  }
+  header .header-inner{
+    display:inline-block;background:rgba(255,255,255,0.97);
+    border-radius:22px;padding:20px 48px 16px 48px;
+    box-shadow:0 1px 8px rgba(0,0,0,0.05);
+  }
+  header h1{font-size:2.2em;letter-spacing:-1px;color:#007b83;font-weight:800;margin:0 0 4px 0;}
+  header p{color:#00a2b8;font-size:1em;font-weight:600;}
+  main{flex:1;max-width:860px;margin:0 auto 32px;width:100%;padding:0 16px;}
+  .card{background:#fff;border:1px solid #ccc;border-radius:6px;padding:20px;margin-bottom:16px;box-shadow:0 2px 4px rgba(0,0,0,.07);}
+  label{font-weight:600;margin-bottom:8px;display:block;color:#1f2937;}
+  textarea{
+    width:100%;height:180px;margin-top:8px;padding:10px;
+    font-size:14px;font-family:'Fira Mono','Menlo',monospace;
+    border-radius:8px;border:1.5px solid #b3c2d4;resize:vertical;transition:border .2s;
+  }
+  textarea:focus{border:1.5px solid #007b83;outline:none;}
+  #output{background:#1e2230;color:#e1e8ef;height:200px;}
+  .btn{
+    margin-top:12px;margin-right:8px;padding:10px 20px;
+    font-size:14px;cursor:pointer;border:none;border-radius:6px;
+    background:#00a2b8;color:#fff;font-weight:600;transition:.2s;
+  }
+  .btn:hover{background:#007b83;}
+  .btn-alt{background:#6c757d;}
+  .btn-alt:hover{background:#495057;}
+  .btn-sample{background:#009688;}
+  .btn-sample:hover{background:#00796b;}
+</style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <h1>SQL Formatter</h1>
+    <p>Paste values → generate SQL IN list</p>
+  </div>
+</header>
+<main>
+  <div class="card">
+    <label>Paste the values (one per line):</label>
+    <textarea id="input" placeholder="ENTRY-001&#10;ENTRY-002&#10;ENTRY-003"></textarea>
+    <button class="btn" onclick="formatSQL()">Generate List</button>
+    <button class="btn btn-alt" onclick="copyText()">Copy Result</button>
+    <button class="btn btn-sample" onclick="loadSample()">🚀 Load sample</button>
+  </div>
+  <div class="card">
+    <label>Result:</label>
+    <textarea id="output" readonly></textarea>
+  </div>
+</main>
+<script>
+function formatSQL(){
+  let text = document.getElementById("input").value;
+  let values = text.split(/\n|,|\s/).filter(v=>v.trim()!=="").map(v=>`'${v.trim()}'`);
+  let lines = [];
+  for(let i=0;i<values.length;i+=20){ lines.push(values.slice(i,i+20).join(",")); }
+  document.getElementById("output").value = lines.join(",\n");
+}
+function copyText(){
+  let output = document.getElementById("output");
+  output.select();
+  document.execCommand("copy");
+}
+function loadSample(){
+  document.getElementById("input").value =
+    "ENTRY-001\nENTRY-002\nENTRY-003\nENTRY-004\nENTRY-005\n" +
+    "ENTRY-006\nENTRY-007\nENTRY-008\nENTRY-009\nENTRY-010";
+  formatSQL();
+}
+</script>
+</body>
+</html>
